@@ -1,4 +1,4 @@
-use grep_clone::regex::Regex;
+use regex::regex::Regex;
 
 #[test]
 fn test_regex_match_a() {
