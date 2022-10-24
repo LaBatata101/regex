@@ -26,7 +26,11 @@ impl Dfa {
         self.transitions.get(&(state, transition)).copied()
     }
 
-    pub fn validate_str(&self, text: &str) -> bool {
+    pub fn validate_str(&self, mut text: &str) -> bool {
+        if text.is_empty() {
+            text = "\0";
+        }
+
         let mut state = Some(self.start_state);
 
         for char in text.chars() {
@@ -279,6 +283,7 @@ pub fn build_automata_from_ast(tree: RegexAST, state: &mut State) -> Automata {
         }
         RegexAST::Symbol(symbol) => return create_automata_for_symbol(symbol, state),
         RegexAST::CharacterClass(character_class_type) => return parse_character_class(character_class_type, state),
+        RegexAST::EmptyString => return create_automata_for_symbol('\0', state),
     }
 
     automata
