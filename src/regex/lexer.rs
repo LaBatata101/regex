@@ -46,10 +46,15 @@ impl Lexer {
     }
 
     /// Get a Token and advance the Token stream pointer by 1
-    pub fn next_token(&mut self) -> Option<Token> {
-        let token = self.tokens.get(self.index).copied();
-        self.index += 1;
-        token
+    pub fn next_token(&mut self) -> Token {
+        // If we reach the end of tokens vector always return the EOF Token
+        if let Some(&token) = self.tokens.get(self.index) {
+            self.index += 1;
+            token
+        } else {
+            self.index -= 1;
+            self.tokens.get(self.index).copied().unwrap()
+        }
     }
 
     /// Get a Token without advancing the Token stream

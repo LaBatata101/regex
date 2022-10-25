@@ -84,57 +84,54 @@ pub fn parse_regex(regex: &str) -> Result<RegexAST, Error> {
 }
 
 fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> Result<RegexAST, Error> {
-    let mut lhs = if let Some(token) = lexer.next_token() {
-        // Handle literals
-        match token.ty {
-            TokenTypes::Symbol(s) => RegexAST::Symbol(s),
-            TokenTypes::OpenParenthesis => {
-                if let Some(TokenTypes::Eof) = lexer.peek_token().map(|token| token.ty) {
-                    return Err(Error::Syntax("Invalid group: missing closing parenthesis!".to_string()));
-                }
-
-                let lhs = parse_regex_expr(lexer, 0)?;
-                if lexer.next_token().map(|token| token.ty) != Some(TokenTypes::CloseParenthesis) {
-                    return Err(Error::Syntax(format!(
-                        "Parenthesis at position {} doesn't have a closing parenthesis!",
-                        token.position().start
-                    )));
-                }
-
-                lhs
+    let token = lexer.next_token();
+    // Handle literals
+    let mut lhs = match token.ty {
+        TokenTypes::Symbol(s) => RegexAST::Symbol(s),
+        TokenTypes::OpenParenthesis => {
+            if let Some(TokenTypes::Eof) = lexer.peek_token().map(|token| token.ty) {
+                return Err(Error::Syntax("Invalid group: missing closing parenthesis!".to_string()));
             }
-            TokenTypes::OpenBracket => {
-                let lhs = parse_character_class(lexer, 0)?;
-                if lexer.next_token().map(|token| token.ty) != Some(TokenTypes::CloseBracket) {
-                    return Err(Error::Syntax(format!(
-                        "Brackets at position {} doesn't have a closing brackets!",
-                        token.position().start
-                    )));
-                }
 
-                RegexAST::CharacterClass(lhs)
+            let lhs = parse_regex_expr(lexer, 0)?;
+            if lexer.next_token().ty != TokenTypes::CloseParenthesis {
+                return Err(Error::Syntax(format!(
+                    "Parenthesis at position {} doesn't have a closing parenthesis!",
+                    token.position().start
+                )));
             }
-            TokenTypes::ClosureStar => return Err(Error::Syntax(
-                "Invalid Closure: ClosureStar operator needs a preceding literal, e.g. \"a*\", \"(ab)*\", \"(a|c)*\"."
-                    .to_string(),
-            )),
-            TokenTypes::ClosurePlus => return Err(Error::Syntax(
-                "Invalid Closure: ClosurePlus operator needs a preceding literal, e.g. \"a+\", \"(ab)+\", \"(a|c)+\"."
-                    .to_string(),
-            )),
-            TokenTypes::Union => return Err(
-                Error::Syntax(
-                    "Invalid Union: the union operator \"|\" needs to be between two literals, e.g. \"ab|cd\", \"a|z\", \"1*|0*\"."
-                        .to_string()
-                )
-            ),
-            TokenTypes::CloseParenthesis => return Err(Error::Syntax("Unmatched parenthesis.".to_string())),
-            TokenTypes::CloseBracket => return Err(Error::Syntax("Unmatched bracket.".to_string())),
-            TokenTypes::Eof => return Ok(RegexAST::EmptyString),
-            t => panic!("Error: Unsuported token {:?}", t),
+
+            lhs
         }
-    } else {
-        panic!("Error: reached end of stream!");
+        TokenTypes::OpenBracket => {
+            let lhs = parse_character_class(lexer, 0)?;
+            if lexer.next_token().ty != TokenTypes::CloseBracket {
+                return Err(Error::Syntax(format!(
+                    "Brackets at position {} doesn't have a closing brackets!",
+                    token.position().start
+                )));
+            }
+
+            RegexAST::CharacterClass(lhs)
+        }
+        TokenTypes::ClosureStar => return Err(Error::Syntax(
+            "Invalid Closure: ClosureStar operator needs a preceding literal, e.g. \"a*\", \"(ab)*\", \"(a|c)*\"."
+                .to_string(),
+        )),
+        TokenTypes::ClosurePlus => return Err(Error::Syntax(
+            "Invalid Closure: ClosurePlus operator needs a preceding literal, e.g. \"a+\", \"(ab)+\", \"(a|c)+\"."
+                .to_string(),
+        )),
+        TokenTypes::Union => return Err(
+            Error::Syntax(
+                "Invalid Union: the union operator \"|\" needs to be between two literals, e.g. \"ab|cd\", \"a|z\", \"1*|0*\"."
+                    .to_string()
+            )
+        ),
+        TokenTypes::CloseParenthesis => return Err(Error::Syntax("Unmatched parenthesis.".to_string())),
+        TokenTypes::CloseBracket => return Err(Error::Syntax("Unmatched bracket.".to_string())),
+        TokenTypes::Eof => return Ok(RegexAST::EmptyString),
+        t => panic!("Error: Unsuported token {:?}", t),
     };
 
     while let Some(token) = lexer.peek_token() {
@@ -198,18 +195,15 @@ fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> Result<RegexAST, Error> {
 }
 
 fn parse_character_class(lexer: &mut Lexer, min_bp: u8) -> Result<CharacterClassType, Error> {
-    let mut lhs = if let Some(token) = lexer.next_token() {
-        match token.ty {
-            TokenTypes::Symbol(s) => CharacterClassType::Single(s),
-            TokenTypes::Eof => {
-                return Err(Error::Syntax(
-                    "Invalid character class: missing closing bracket!".to_string(),
-                ))
-            }
-            t => panic!("Invalid token {:?}", t),
+    let token = lexer.next_token();
+    let mut lhs = match token.ty {
+        TokenTypes::Symbol(s) => CharacterClassType::Single(s),
+        TokenTypes::Eof => {
+            return Err(Error::Syntax(
+                "Invalid character class: missing closing bracket!".to_string(),
+            ))
         }
-    } else {
-        panic!("End of Stream")
+        t => panic!("Invalid token {:?}", t),
     };
 
     while let Some(token) = lexer.peek_token() {
