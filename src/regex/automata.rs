@@ -26,11 +26,7 @@ impl Dfa {
         self.transitions.get(&(state, transition)).copied()
     }
 
-    pub fn validate_str(&self, mut text: &str) -> bool {
-        if text.is_empty() {
-            text = "\0";
-        }
-
+    pub fn validate_str(&self, text: &str) -> bool {
         let mut state = Some(self.start_state);
 
         for char in text.chars() {
@@ -281,9 +277,9 @@ pub fn build_automata_from_ast(tree: RegexAST, state: &mut State) -> Automata {
 
             automata.merge_automata(lhs);
         }
-        RegexAST::Symbol(symbol) => return create_automata_for_symbol(symbol, state),
+        RegexAST::Symbol(symbol) => return create_automata_for_transtition_type(TransitionType::Symbol(symbol), state),
         RegexAST::CharacterClass(character_class_type) => return parse_character_class(character_class_type, state),
-        RegexAST::EmptyString => return create_automata_for_symbol('\0', state),
+        RegexAST::EmptyString => return create_automata_for_transtition_type(TransitionType::Epsilon, state),
     }
 
     automata
@@ -293,7 +289,7 @@ fn parse_character_class(char_class_type: CharacterClassType, state: &mut usize)
     let mut automata = Automata::new(*state);
     match char_class_type {
         CharacterClassType::Single(symbol) => {
-            return create_automata_for_symbol(symbol, state);
+            return create_automata_for_transtition_type(TransitionType::Symbol(symbol), state);
         }
         CharacterClassType::Binary(lhs, CharacterClassBinaryOp::Union, rhs) => {
             let lhs = parse_character_class(*lhs, state);
@@ -334,9 +330,9 @@ fn parse_character_class(char_class_type: CharacterClassType, state: &mut usize)
     automata
 }
 
-fn create_automata_for_symbol(symbol: char, state: &mut State) -> Automata {
+fn create_automata_for_transtition_type(transition: TransitionType, state: &mut State) -> Automata {
     let mut automata = Automata::new(*state);
-    automata.add_transition(*state, TransitionType::Symbol(symbol), *state + 1);
+    automata.add_transition(*state, transition, *state + 1);
     automata.add_final_state(*state + 1);
 
     *state += 2;
