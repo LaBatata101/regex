@@ -1,11 +1,14 @@
-use crate::regex::lexer::{tokenize_regex_str, TokenTypes, Token};
+use crate::regex::lexer::{tokenize_regex_str, Token, TokenTypes};
 
 #[test]
 fn test_tokenize_regex_symbol() {
     let regex = "a";
     assert_eq!(
         tokenize_regex_str(regex),
-        vec![Token::new(TokenTypes::Symbol('a'), 0, 1), Token::new(TokenTypes::Eof, 2, 2)]
+        vec![
+            Token::new(TokenTypes::Symbol('a'), 0, 1),
+            Token::new(TokenTypes::Eof, 2, 2)
+        ]
     )
 }
 
@@ -166,7 +169,7 @@ fn test_tokenize_parenthesis_concatenation() {
 #[test]
 fn test_tokenize_char_range_lowercase() {
     let regex = "[a-z]";
-    
+
     assert_eq!(
         tokenize_regex_str(regex),
         vec![
@@ -183,7 +186,7 @@ fn test_tokenize_char_range_lowercase() {
 #[test]
 fn test_tokenize_char_range_lowercase_or_uppercase() {
     let regex = "[a-zA-Z]";
-    
+
     assert_eq!(
         tokenize_regex_str(regex),
         vec![

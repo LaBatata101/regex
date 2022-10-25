@@ -174,7 +174,8 @@ fn test_invalid_closure_regex() {
     assert_eq!(
         re.unwrap_err(),
         Error::Syntax(
-            "Invalid Closure: Closure needs a preceding literal, e.g. \"a*\", \"(ab)*\", \"abc+\".".to_string()
+            "Invalid Closure: ClosureStar operator needs a preceding literal, e.g. \"a*\", \"(ab)*\", \"(a|c)*\"."
+                .to_string()
         )
     )
 }
@@ -200,7 +201,7 @@ fn test_invalid_closurestar_followed_by_closurestar_regex() {
     assert_eq!(
         re.unwrap_err(),
         Error::Syntax(
-            "Invalid Closure: Closure Star operator can't be followed by another Closure Star operator".to_string()
+            "Invalid Closure: ClosureStar operator can't be followed by another Closure Star operator".to_string()
         )
     )
 }
