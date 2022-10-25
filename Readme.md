@@ -21,6 +21,6 @@ fn main() {
     assert!(!re.is_match(""));
     assert!(!re.is_match("aa"));
     assert!(re.is_match("a"));
-    bssert!(re.is_match("z"));
+    assert!(re.is_match("z"));
 }
 ```
