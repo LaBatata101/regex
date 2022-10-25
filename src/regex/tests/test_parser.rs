@@ -1,14 +1,14 @@
-use crate::regex::parser::{parse_regex, BinaryOp, CharacterClassType, RegexAST, UnaryOp, CharacterClassBinaryOp};
+use crate::regex::parser::{parse_regex, BinaryOp, CharacterClassBinaryOp, CharacterClassType, RegexAST, UnaryOp};
 
 #[test]
 fn test_parse_symbol() {
-    let expr = parse_regex("a");
+    let expr = parse_regex("a").unwrap();
     assert_eq!(expr, RegexAST::Symbol('a'))
 }
 
 #[test]
 fn test_parse_union() {
-    let expr = parse_regex("a|b");
+    let expr = parse_regex("a|b").unwrap();
     assert_eq!(
         expr,
         RegexAST::Binary(
@@ -21,7 +21,7 @@ fn test_parse_union() {
 
 #[test]
 fn test_parse_concatenation() {
-    let expr = parse_regex("ab");
+    let expr = parse_regex("ab").unwrap();
     assert_eq!(
         expr,
         RegexAST::Binary(
@@ -34,7 +34,7 @@ fn test_parse_concatenation() {
 
 #[test]
 fn test_parse_concatenation_and_union() {
-    let expr = parse_regex("ab|cd");
+    let expr = parse_regex("ab|cd").unwrap();
     assert_eq!(
         expr,
         RegexAST::Binary(
@@ -55,7 +55,7 @@ fn test_parse_concatenation_and_union() {
 
 #[test]
 fn test_parse_multiple_union() {
-    let expr = parse_regex("ab|cd|ef");
+    let expr = parse_regex("ab|cd|ef").unwrap();
     assert_eq!(
         expr,
         RegexAST::Binary(
@@ -84,7 +84,7 @@ fn test_parse_multiple_union() {
 
 #[test]
 fn test_parse_closurestar_with_parens() {
-    let expr = parse_regex("(ab)*");
+    let expr = parse_regex("(ab)*").unwrap();
     assert_eq!(
         expr,
         RegexAST::Unary(
@@ -100,7 +100,7 @@ fn test_parse_closurestar_with_parens() {
 
 #[test]
 fn test_parse_closurestar_with_parens_and_union() {
-    let expr = parse_regex("(ab)*|c*");
+    let expr = parse_regex("(ab)*|c*").unwrap();
     assert_eq!(
         expr,
         RegexAST::Binary(
@@ -120,7 +120,7 @@ fn test_parse_closurestar_with_parens_and_union() {
 
 #[test]
 fn test_parse_closurestar() {
-    let expr = parse_regex("a*");
+    let expr = parse_regex("a*").unwrap();
     assert_eq!(
         expr,
         RegexAST::Unary(Box::new(RegexAST::Symbol('a')), UnaryOp::ClosureStar)
@@ -129,7 +129,7 @@ fn test_parse_closurestar() {
 
 #[test]
 fn test_parse_closureplus() {
-    let expr = parse_regex("a+");
+    let expr = parse_regex("a+").unwrap();
     assert_eq!(
         expr,
         RegexAST::Unary(Box::new(RegexAST::Symbol('a')), UnaryOp::ClosurePlus)
@@ -138,7 +138,7 @@ fn test_parse_closureplus() {
 
 #[test]
 fn test_parse_closurestar_union_closureplus() {
-    let expr = parse_regex("(ab)*|(cd)+");
+    let expr = parse_regex("(ab)*|(cd)+").unwrap();
     assert_eq!(
         expr,
         RegexAST::Binary(
@@ -165,7 +165,7 @@ fn test_parse_closurestar_union_closureplus() {
 
 #[test]
 fn test_parse_union_with_paren_and_concatenation() {
-    let expr = parse_regex("(ab|cd|ef)g");
+    let expr = parse_regex("(ab|cd|ef)g").unwrap();
 
     assert_eq!(
         expr,
@@ -199,7 +199,7 @@ fn test_parse_union_with_paren_and_concatenation() {
 
 #[test]
 fn test_parse_character_class_range() {
-    let expr = parse_regex("[a-z]");
+    let expr = parse_regex("[a-z]").unwrap();
 
     assert_eq!(
         expr,
@@ -213,21 +213,24 @@ fn test_parse_character_class_range() {
 
 #[test]
 fn test_parse_character_class_range2() {
-    let expr = parse_regex("[a-z]+");
+    let expr = parse_regex("[a-z]+").unwrap();
 
     assert_eq!(
         expr,
-        RegexAST::Unary(Box::new(RegexAST::CharacterClass(CharacterClassType::Binary(
-            Box::new(CharacterClassType::Single('a')),
-            CharacterClassBinaryOp::Range,
-            Box::new(CharacterClassType::Single('z'))
-        ))), UnaryOp::ClosurePlus)
+        RegexAST::Unary(
+            Box::new(RegexAST::CharacterClass(CharacterClassType::Binary(
+                Box::new(CharacterClassType::Single('a')),
+                CharacterClassBinaryOp::Range,
+                Box::new(CharacterClassType::Single('z'))
+            ))),
+            UnaryOp::ClosurePlus
+        )
     )
 }
 
 #[test]
 fn test_parse_character_class_multiple_symbols() {
-    let expr = parse_regex("[abc]");
+    let expr = parse_regex("[abc]").unwrap();
 
     assert_eq!(
         expr,
@@ -245,7 +248,7 @@ fn test_parse_character_class_multiple_symbols() {
 
 #[test]
 fn test_parse_character_class_with_two_ranges() {
-    let expr = parse_regex("[a-zA-Z]");
+    let expr = parse_regex("[a-zA-Z]").unwrap();
 
     assert_eq!(
         expr,
@@ -267,7 +270,7 @@ fn test_parse_character_class_with_two_ranges() {
 
 #[test]
 fn test_parse_character_class_with_three_ranges() {
-    let expr = parse_regex("[a-zA-Z0-9]");
+    let expr = parse_regex("[a-zA-Z0-9]").unwrap();
 
     assert_eq!(
         expr,

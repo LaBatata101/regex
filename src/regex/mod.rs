@@ -11,15 +11,18 @@ mod lexer;
 mod parser;
 mod tests;
 
+pub use parser::Error;
+
+#[derive(Debug)]
 pub struct Regex {
     pub automaton: Dfa,
 }
 
 impl Regex {
-    pub fn new(re: &str) -> Self {
-        Self {
-            automaton: Automata::from_regex_expr(parse_regex(re)),
-        }
+    pub fn new(re: &str) -> Result<Self, Error> {
+        Ok(Self {
+            automaton: Automata::from_regex_expr(parse_regex(re)?),
+        })
     }
 
     pub fn is_match(&self, text: &str) -> bool {

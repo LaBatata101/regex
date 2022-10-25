@@ -228,7 +228,7 @@ fn test_reachable_subset_reverse_subset_reversed_automata() {
 
 #[test]
 fn create_automata_from_regex_character_class_range() {
-    let automata = build_automata_from_ast(parse_regex("[a-e]"), &mut 0);
+    let automata = build_automata_from_ast(parse_regex("[a-e]").unwrap(), &mut 0);
     let mut expected_automata = Automata::new(0);
     expected_automata.add_transition(0, TransitionType::Symbol('a'), 1);
     expected_automata.add_transition(0, TransitionType::Symbol('b'), 1);
@@ -242,7 +242,7 @@ fn create_automata_from_regex_character_class_range() {
 
 #[test]
 fn create_automata_from_regex_character_class_range2() {
-    let automata = build_automata_from_ast(parse_regex("1[a-e]"), &mut 0);
+    let automata = build_automata_from_ast(parse_regex("1[a-e]").unwrap(), &mut 0);
     let mut expected_automata = Automata::new(0);
     expected_automata.add_transition(0, TransitionType::Symbol('1'), 1);
     expected_automata.add_transition(1, TransitionType::Epsilon, 2);

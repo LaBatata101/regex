@@ -1,4 +1,10 @@
-use super::lexer::{TokenTypes, Lexer};
+use super::lexer::{Lexer, TokenTypes};
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Error {
+    Syntax(String),
+    InvalidRange(String),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
@@ -19,7 +25,7 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharacterClassBinaryOp {
     Union,
-    Range
+    Range,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,13 +35,14 @@ pub enum RegexAST {
     /// a => matches the symbol a
     Symbol(char),
     /// [abc] or [a-zA-Z] etc
-    CharacterClass(CharacterClassType)
+    CharacterClass(CharacterClassType),
+    EmptyString,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CharacterClassType {
     Single(char),
-    Binary(Box<CharacterClassType>, CharacterClassBinaryOp, Box<CharacterClassType>)
+    Binary(Box<CharacterClassType>, CharacterClassBinaryOp, Box<CharacterClassType>),
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -50,57 +57,80 @@ impl Operation {
     fn get_character_class_binary_op(&self) -> CharacterClassBinaryOp {
         match self {
             Operation::CharacterClassBinary(op) => *op,
-            op => panic!("Current Operation is not a CharacterClass binary: {:?}", op)
+            op => panic!("Current Operation is not a CharacterClass binary: {:?}", op),
         }
     }
 
     fn get_binary_op(&self) -> BinaryOp {
         match self {
             Operation::Binary(op) => *op,
-            op => panic!("Current Operation is not binary: {:?}", op)
+            op => panic!("Current Operation is not binary: {:?}", op),
         }
     }
 
     fn get_unary_op(&self) -> UnaryOp {
         match self {
             Operation::Unary(op) => *op,
-            op => panic!("Current Operation is not unary: {:?}", op)
+            op => panic!("Current Operation is not unary: {:?}", op),
         }
-
     }
 }
 
-pub fn parse_regex(regex: &str) -> RegexAST {
+pub fn parse_regex(regex: &str) -> Result<RegexAST, Error> {
     let mut lexer = Lexer::new(regex);
-    parse_regex_expr(&mut lexer, 0)
+    let ast = parse_regex_expr(&mut lexer, 0)?;
+
+    Ok(ast)
 }
 
-// TODO: Return `Result` to handle errors in the syntax
-fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> RegexAST {
+fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> Result<RegexAST, Error> {
     let mut lhs = if let Some(token) = lexer.next_token() {
+        // Handle literals
         match token.ty {
             TokenTypes::Symbol(s) => RegexAST::Symbol(s),
             TokenTypes::OpenParenthesis => {
-                let lhs = parse_regex_expr(lexer, 0);
-                assert_eq!(
-                    lexer.next_token().map(|token| token.ty),
-                    Some(TokenTypes::CloseParenthesis),
-                    "Parenthesis at position {} doesn't have a closing parenthesis!",
-                    token.position().start
-                );
+                if let Some(TokenTypes::Eof) = lexer.peek_token().map(|token| token.ty) {
+                    return Err(Error::Syntax("Invalid group: missing closing parenthesis!".to_string()));
+                }
+
+                let lhs = parse_regex_expr(lexer, 0)?;
+                if lexer.next_token().map(|token| token.ty) != Some(TokenTypes::CloseParenthesis) {
+                    return Err(Error::Syntax(format!(
+                        "Parenthesis at position {} doesn't have a closing parenthesis!",
+                        token.position().start
+                    )));
+                }
 
                 lhs
             }
             TokenTypes::OpenBracket => {
-                let lhs = parse_character_class(lexer, 0);
-                assert_eq!(lexer.next_token().map(|token| token.ty),
-                    Some(TokenTypes::CloseBracket),
-                    "Brackets at position {} doesn't have a closing match!",
-                    token.position().start
-                );
+                let lhs = parse_character_class(lexer, 0)?;
+                if lexer.next_token().map(|token| token.ty) != Some(TokenTypes::CloseBracket) {
+                    return Err(Error::Syntax(format!(
+                        "Brackets at position {} doesn't have a closing brackets!",
+                        token.position().start
+                    )));
+                }
 
                 RegexAST::CharacterClass(lhs)
             }
+            TokenTypes::ClosureStar => return Err(Error::Syntax(
+                "Invalid Closure: ClosureStar operator needs a preceding literal, e.g. \"a*\", \"(ab)*\", \"(a|c)*\"."
+                    .to_string(),
+            )),
+            TokenTypes::ClosurePlus => return Err(Error::Syntax(
+                "Invalid Closure: ClosurePlus operator needs a preceding literal, e.g. \"a+\", \"(ab)+\", \"(a|c)+\"."
+                    .to_string(),
+            )),
+            TokenTypes::Union => return Err(
+                Error::Syntax(
+                    "Invalid Union: the union operator \"|\" needs to be between two literals, e.g. \"ab|cd\", \"a|z\", \"1*|0*\"."
+                        .to_string()
+                )
+            ),
+            TokenTypes::CloseParenthesis => return Err(Error::Syntax("Unmatched parenthesis.".to_string())),
+            TokenTypes::CloseBracket => return Err(Error::Syntax("Unmatched bracket.".to_string())),
+            TokenTypes::Eof => return Ok(RegexAST::EmptyString),
             t => panic!("Error: Unsuported token {:?}", t),
         }
     } else {
@@ -114,10 +144,11 @@ fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> RegexAST {
             TokenTypes::ClosureStar => Operation::Unary(UnaryOp::ClosureStar),
             TokenTypes::ClosurePlus => Operation::Unary(UnaryOp::ClosurePlus),
             TokenTypes::OpenParenthesis | TokenTypes::CloseParenthesis => Operation::Unknow(token.ty),
-            TokenTypes::Eof => return lhs,
+            TokenTypes::Eof => return Ok(lhs),
             t => panic!("Error: Unsuported token {:?}", t),
         };
 
+        // Handle unary operations precedence
         if let Some((l_bp, ())) = postfix_binding_power(op) {
             if l_bp < min_bp {
                 break;
@@ -125,24 +156,36 @@ fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> RegexAST {
 
             lexer.next_token();
 
-            if let Some(token) = lexer.peek_token() {
-                if token.ty == TokenTypes::ClosureStar {
-                    // TODO: handle this case!
-                    println!("Invalid Second Closure! {:?}", token);
-                }
+            if let Some(TokenTypes::ClosureStar) = lexer.peek_token().map(|token| token.ty) {
+                return Err(Error::Syntax(
+                    "Invalid Closure: ClosureStar operator can't be followed by another Closure Star operator"
+                        .to_string(),
+                ));
             }
 
             lhs = RegexAST::Unary(Box::new(lhs), op.get_unary_op());
             continue;
         }
 
+        // Handle binary operations precedence
         if let Some((l_bp, r_bp)) = infix_binding_power(op) {
             if l_bp < min_bp {
                 break;
             }
 
             lexer.next_token();
-            let rhs = parse_regex_expr(lexer, r_bp);
+
+            let rhs = if op.get_binary_op() == BinaryOp::Union {
+                // Handles the case where we have somethin like this "a|", this means we are
+                // matching "a" or the empty string.
+                if let Some(TokenTypes::Eof) = lexer.peek_token().map(|token| token.ty) {
+                    RegexAST::EmptyString
+                } else {
+                    parse_regex_expr(lexer, r_bp)?
+                }
+            } else {
+                parse_regex_expr(lexer, r_bp)?
+            };
 
             lhs = RegexAST::Binary(Box::new(lhs), op.get_binary_op(), Box::new(rhs));
             continue;
@@ -151,14 +194,19 @@ fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> RegexAST {
         break;
     }
 
-    lhs
+    Ok(lhs)
 }
 
-fn parse_character_class(lexer: &mut Lexer, min_bp: u8) -> CharacterClassType {
+fn parse_character_class(lexer: &mut Lexer, min_bp: u8) -> Result<CharacterClassType, Error> {
     let mut lhs = if let Some(token) = lexer.next_token() {
         match token.ty {
             TokenTypes::Symbol(s) => CharacterClassType::Single(s),
-            t => panic!("Invalid token {:?}", t)
+            TokenTypes::Eof => {
+                return Err(Error::Syntax(
+                    "Invalid character class: missing closing bracket!".to_string(),
+                ))
+            }
+            t => panic!("Invalid token {:?}", t),
         }
     } else {
         panic!("End of Stream")
@@ -169,7 +217,7 @@ fn parse_character_class(lexer: &mut Lexer, min_bp: u8) -> CharacterClassType {
             TokenTypes::Union => Operation::CharacterClassBinary(CharacterClassBinaryOp::Union),
             TokenTypes::Dash => Operation::CharacterClassBinary(CharacterClassBinaryOp::Range),
             TokenTypes::CloseBracket => Operation::Unknow(token.ty),
-            TokenTypes::Eof => return lhs,
+            TokenTypes::Eof => return Ok(lhs),
             t => panic!("Error: Unsuported token {:?}", t),
         };
 
@@ -179,12 +227,14 @@ fn parse_character_class(lexer: &mut Lexer, min_bp: u8) -> CharacterClassType {
             }
 
             lexer.next_token();
-            let rhs = parse_character_class(lexer, rhs_bp);
+            let rhs = parse_character_class(lexer, rhs_bp)?;
             let binary_op = op.get_character_class_binary_op();
             if binary_op == CharacterClassBinaryOp::Range {
                 if let (CharacterClassType::Single(lhs), CharacterClassType::Single(rhs)) = (&lhs, &rhs) {
                     if rhs < lhs {
-                        panic!("Invalid Range lhs is bigger than rhs!")
+                        return Err(Error::InvalidRange(format!(
+                            "Invalid Range: \"{lhs}\" is bigger than \"{rhs}\"!"
+                        )));
                     }
                 }
             }
@@ -196,12 +246,14 @@ fn parse_character_class(lexer: &mut Lexer, min_bp: u8) -> CharacterClassType {
         break;
     }
 
-    lhs
+    Ok(lhs)
 }
 
 fn infix_binding_power(op: Operation) -> Option<(u8, u8)> {
     match op {
-        Operation::Binary(BinaryOp::Union) | Operation::CharacterClassBinary(CharacterClassBinaryOp::Union) => Some((1, 2)),
+        Operation::Binary(BinaryOp::Union) | Operation::CharacterClassBinary(CharacterClassBinaryOp::Union) => {
+            Some((1, 2))
+        }
         Operation::Binary(BinaryOp::Concatenation) => Some((3, 3)),
         Operation::CharacterClassBinary(CharacterClassBinaryOp::Range) => Some((6, 5)),
         _ => None,
