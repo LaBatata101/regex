@@ -101,6 +101,15 @@ fn test_regex_match_email() {
 }
 
 #[test]
+fn test_regex_match_empty_string() {
+    let re = Regex::new("").unwrap();
+
+    assert!(re.is_match(""));
+    assert!(!re.is_match("a"));
+    assert!(!re.is_match("abc"));
+}
+
+#[test]
 fn test_regex_match_a_or_empty_string() {
     let re = Regex::new("a|"); // TODO: handle the case "|a"
 
