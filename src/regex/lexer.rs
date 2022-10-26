@@ -15,6 +15,29 @@ pub enum TokenTypes {
     Eof,
 }
 
+impl TokenTypes {
+    fn get_token_type(symbol: char) -> TokenTypes {
+        match symbol {
+            '*' => TokenTypes::ClosureStar,
+            '+' => TokenTypes::ClosurePlus,
+            '|' => TokenTypes::Union,
+            '(' => TokenTypes::OpenParenthesis,
+            ')' => TokenTypes::CloseParenthesis,
+            '[' => TokenTypes::OpenBracket,
+            ']' => TokenTypes::CloseBracket,
+            _ => TokenTypes::Symbol(symbol),
+        }
+    }
+
+    // Inside of a "[]" all characters, except ']', are `TokenTypes::Symbol`
+    fn get_token_type_for_character_classs(symbol: char) -> TokenTypes {
+        match symbol {
+            ']' => TokenTypes::CloseBracket,
+            _ => TokenTypes::Symbol(symbol),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Token {
     pub ty: TokenTypes,
@@ -72,7 +95,7 @@ pub fn tokenize_regex_str(regex: &str) -> Vec<Token> {
     while index < chars.len() {
         let symbol = chars[index];
 
-        let mut current_token_type = get_token_type(symbol);
+        let mut current_token_type = TokenTypes::get_token_type(symbol);
         tokens.push(Token::new(current_token_type, index, index + 1));
 
         if current_token_type == TokenTypes::OpenBracket {
@@ -80,7 +103,7 @@ pub fn tokenize_regex_str(regex: &str) -> Vec<Token> {
         }
 
         if let Some(&next_symbol) = chars.get(index + 1) {
-            let next_token_type = get_token_type(next_symbol);
+            let next_token_type = TokenTypes::get_token_type(next_symbol);
 
             if matches!(
                 current_token_type,
@@ -116,14 +139,14 @@ fn handle_character_class(
     while !matches!(current_token_type, TokenTypes::CloseBracket | TokenTypes::Eof) {
         *index += 1;
         if let Some(&symbol) = chars.get(*index) {
-            *current_token_type = get_token_type_for_character_classs(symbol);
+            *current_token_type = TokenTypes::get_token_type_for_character_classs(symbol);
             tokens.push(Token::new(*current_token_type, *index, *index + 1));
 
             if let Some(&next_symbol) = chars.get(*index + 1) {
-                let next_token_type = get_token_type_for_character_classs(next_symbol);
+                let next_token_type = TokenTypes::get_token_type_for_character_classs(next_symbol);
 
                 if let Some(&next_next_symbol) = chars.get(*index + 2) {
-                    let next_next_token_type = get_token_type_for_character_classs(next_next_symbol);
+                    let next_next_token_type = TokenTypes::get_token_type_for_character_classs(next_next_symbol);
 
                     // Only make dash a token-type if is between two symbols
                     if matches!(current_token_type, TokenTypes::Symbol(_))
@@ -147,28 +170,5 @@ fn handle_character_class(
             *current_token_type = TokenTypes::Eof;
             tokens.push(Token::new(*current_token_type, *index + 1, *index + 1));
         };
-    }
-}
-
-// TODO: maybe move this to be a TokenTypes function
-fn get_token_type(symbol: char) -> TokenTypes {
-    match symbol {
-        '*' => TokenTypes::ClosureStar,
-        '+' => TokenTypes::ClosurePlus,
-        '|' => TokenTypes::Union,
-        '(' => TokenTypes::OpenParenthesis,
-        ')' => TokenTypes::CloseParenthesis,
-        '[' => TokenTypes::OpenBracket,
-        ']' => TokenTypes::CloseBracket,
-        _ => TokenTypes::Symbol(symbol),
-    }
-}
-
-// TODO: maybe move this to be a TokenTypes function
-// Inside of a "[]" all characters, except ']', are `TokenTypes::Symbol`
-fn get_token_type_for_character_classs(symbol: char) -> TokenTypes {
-    match symbol {
-        ']' => TokenTypes::CloseBracket,
-        _ => TokenTypes::Symbol(symbol),
     }
 }
