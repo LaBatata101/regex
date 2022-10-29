@@ -10,6 +10,7 @@ Simple regex engine implementation in Rust using Automatas.
 - **Character Class** `[a-zA-Z]` - Allow the creation of ranges and the `Or` operator is implicit inside the 
 Character Class, the example is matching one literal between "a" and "z", or "A" and "Z" inclusive.
 - **Ranges** `[a-z]` - Matches one literal between "a" and "z" inclusive.
+- **Dot** `.` - Matches a single UTF-8 char.
 
 ## Example
 ```rust
