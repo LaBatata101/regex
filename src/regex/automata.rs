@@ -30,23 +30,17 @@ impl Dfa {
     pub fn validate_str(&self, text: &str) -> bool {
         let mut state = Some(self.start_state);
 
-        // TODO: refactor this
         for char in text.chars() {
             if let Some(curr_state) = state {
-                if let Some(next_state) = self.next_state(curr_state, TransitionType::Symbol(char)) {
-                    state = Some(next_state);
-                } else {
-                    state = self.next_state(curr_state, TransitionType::AnyCharacter);
-                }
+                state = self
+                    .next_state(curr_state, TransitionType::Symbol(char))
+                    .map_or_else(|| self.next_state(curr_state, TransitionType::AnyCharacter), Some);
             } else {
                 break;
             }
         }
 
-        match state {
-            Some(state) => self.final_states.contains(&state),
-            None => false,
-        }
+        state.map_or(false, |s| self.final_states.contains(&s))
     }
 }
 
