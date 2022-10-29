@@ -10,6 +10,7 @@ use super::parser::{BinaryOp, RegexAST, UnaryOp};
 pub enum TransitionType {
     Epsilon,
     Symbol(char),
+    AnyCharacter,
 }
 
 pub type State = usize;
@@ -29,9 +30,14 @@ impl Dfa {
     pub fn validate_str(&self, text: &str) -> bool {
         let mut state = Some(self.start_state);
 
+        // TODO: refactor this
         for char in text.chars() {
             if let Some(curr_state) = state {
-                state = self.next_state(curr_state, TransitionType::Symbol(char));
+                if let Some(next_state) = self.next_state(curr_state, TransitionType::Symbol(char)) {
+                    state = Some(next_state);
+                } else {
+                    state = self.next_state(curr_state, TransitionType::AnyCharacter);
+                }
             } else {
                 break;
             }
@@ -168,12 +174,10 @@ impl Automata {
             transitions: nfa
                 .transitions
                 .iter()
-                // .inspect(|x| println!("Transition: {x:?}"))
                 .map(|(state_transition_types, dest_states)| {
                     // At this point the NFA only have one state in it's dest states
                     (*state_transition_types, dest_states.iter().next().copied().unwrap())
                 })
-                // .inspect(|x| println!("Transition after filter: {x:?}"))
                 .collect(),
             final_states: nfa.final_states,
         }
@@ -195,12 +199,12 @@ impl Automata {
         &self.final_states
     }
 
-    fn alphabet(&self) -> BTreeSet<char> {
+    fn alphabet(&self) -> BTreeSet<TransitionType> {
         self.transitions
             .iter()
-            .filter_map(|((_, transition_type), _)| match transition_type {
+            .filter_map(|(&(_, transition_type), _)| match transition_type {
                 TransitionType::Epsilon => None,
-                TransitionType::Symbol(s) => Some(*s),
+                transition => Some(transition),
             })
             .collect()
     }
@@ -280,6 +284,7 @@ pub fn build_automata_from_ast(tree: RegexAST, state: &mut State) -> Automata {
         RegexAST::Symbol(symbol) => return create_automata_for_transtition_type(TransitionType::Symbol(symbol), state),
         RegexAST::CharacterClass(character_class_type) => return parse_character_class(character_class_type, state),
         RegexAST::EmptyString => return create_automata_for_transtition_type(TransitionType::Epsilon, state),
+        RegexAST::AnyCharacter => return create_automata_for_transtition_type(TransitionType::AnyCharacter, state),
     }
 
     automata
@@ -346,12 +351,12 @@ pub fn reachable(mut automata: Automata) -> Automata {
     let mut new_states = BTreeSet::from([automata.start_state()]);
 
     while !new_states.is_empty() {
-        let temp: BTreeSet<State> = alphabet
+        new_states = &alphabet
             .iter()
-            .flat_map(|symbol| automata.delta(&new_states, TransitionType::Symbol(*symbol)))
-            .collect();
+            .flat_map(|symbol| automata.delta(&new_states, *symbol))
+            .collect::<BTreeSet<State>>()
+            - &reachable_states;
 
-        new_states = &temp - &reachable_states;
         reachable_states = &reachable_states | &new_states;
     }
 
@@ -396,6 +401,7 @@ pub fn subset(automata: Automata) -> Automata {
 
     while !work_list.is_empty() {
         let states = work_list.pop().unwrap();
+
         if let Some(state) = new_states.get(&calculate_hash(&states)) {
             curr_state = *state;
         }
@@ -405,11 +411,10 @@ pub fn subset(automata: Automata) -> Automata {
         }
 
         for symbol in &alphabet {
-            let subset = automata.eclosure(automata.delta(&states, TransitionType::Symbol(*symbol)));
+            let subset = automata.eclosure(automata.delta(&states, *symbol));
+
             let subset_hash = calculate_hash(&subset);
-            dest_state = if let Some(&dest_state) = new_states.get(&subset_hash) {
-                dest_state
-            } else {
+            dest_state = new_states.get(&subset_hash).copied().unwrap_or_else(|| {
                 // TODO: find a better way to create state labels that doesnt exist
                 loop {
                     dest_state += 1;
@@ -418,9 +423,9 @@ pub fn subset(automata: Automata) -> Automata {
                     }
                 }
                 dest_state
-            };
+            });
 
-            new_automata.add_transition(curr_state, TransitionType::Symbol(*symbol), dest_state);
+            new_automata.add_transition(curr_state, *symbol, dest_state);
 
             if let Entry::Vacant(new_states) = new_states.entry(subset_hash) {
                 new_states.insert(dest_state);

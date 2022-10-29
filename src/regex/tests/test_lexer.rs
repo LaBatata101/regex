@@ -325,3 +325,33 @@ fn test_tokenize_multiple_symbols_character_class3() {
         ]
     )
 }
+
+#[test]
+fn test_tokenize_dot_operator() {
+    let regex = "6.";
+
+    assert_eq!(
+        tokenize_regex_str(regex),
+        vec![
+            Token::new(TokenTypes::Symbol('6'), 0, 1),
+            Token::new(TokenTypes::Concatenation, 0, 0),
+            Token::new(TokenTypes::Dot, 1, 2),
+            Token::new(TokenTypes::Eof, 3, 3)
+        ]
+    )
+}
+
+#[test]
+fn test_tokenize_dot_operator2() {
+    let regex = "..";
+
+    assert_eq!(
+        tokenize_regex_str(regex),
+        vec![
+            Token::new(TokenTypes::Dot, 0, 1),
+            Token::new(TokenTypes::Concatenation, 0, 0),
+            Token::new(TokenTypes::Dot, 1, 2),
+            Token::new(TokenTypes::Eof, 3, 3)
+        ]
+    )
+}

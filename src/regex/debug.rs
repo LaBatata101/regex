@@ -26,6 +26,7 @@ pub struct AutomataPrinter {
 
 impl AutomataPrinter {
     pub fn new(nfa: &impl AutomataDebug) -> Self {
+        // FIXME: generate an empty image when only one state exist with no transitions
         let nodes = nfa
             .states()
             .iter()
@@ -48,6 +49,7 @@ impl AutomataPrinter {
                 .entry((state, dest_state))
                 .or_insert_with(Vec::new)
                 .push(match t {
+                    TransitionType::AnyCharacter => String::from("<I>ANY CHAR</I>"),
                     TransitionType::Epsilon => String::from("&epsilon;"),
                     TransitionType::Symbol(symbol) => symbol.to_string(),
                 });
@@ -115,8 +117,8 @@ impl<'a> dot::Labeller<'a, Node<'a>, Edge<'a>> for AutomataPrinter {
     }
 
     fn edge_label<'b>(&'b self, edge: &Edge<'b>) -> dot::LabelText<'b> {
-        let (_, transition_type, _) = edge;
-        dot::LabelText::LabelStr(transition_type.clone().into())
+        let (_, transition_lbl, _) = edge;
+        dot::LabelText::HtmlStr(transition_lbl.clone().into())
     }
 }
 

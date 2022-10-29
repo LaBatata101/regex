@@ -297,3 +297,17 @@ fn test_parse_character_class_with_three_ranges() {
         ))
     )
 }
+
+#[test]
+fn test_parse_dot_operator() {
+    let expr = parse_regex("..").unwrap();
+
+    assert_eq!(
+        expr,
+        RegexAST::Binary(
+            Box::new(RegexAST::AnyCharacter),
+            BinaryOp::Concatenation,
+            Box::new(RegexAST::AnyCharacter)
+        )
+    )
+}

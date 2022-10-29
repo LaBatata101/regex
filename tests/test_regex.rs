@@ -214,3 +214,23 @@ fn test_invalid_closurestar_followed_by_closurestar_regex() {
         )
     )
 }
+
+#[test]
+fn test_regex_dot_operator() {
+    let re = Regex::new("..").unwrap();
+
+    assert!(re.is_match("a+"));
+    assert!(re.is_match("z\\"));
+    assert!(re.is_match("$0"));
+    assert!(re.is_match("(º"));
+    assert!(re.is_match("😼V"));
+}
+
+#[test]
+fn test_regex_dot_operator2() {
+    let re = Regex::new("[0-9].[a-z]").unwrap();
+
+    assert!(re.is_match("0😼z"));
+    assert!(re.is_match("9😼g"));
+    assert!(re.is_match("6$i"));
+}

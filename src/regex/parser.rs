@@ -37,6 +37,8 @@ pub enum RegexAST {
     /// [abc] or [a-zA-Z] etc
     CharacterClass(CharacterClassType),
     EmptyString,
+    /// . => matches any character
+    AnyCharacter,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -114,6 +116,9 @@ fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> Result<RegexAST, Error> {
 
             RegexAST::CharacterClass(lhs)
         }
+        TokenTypes::Dot => RegexAST::AnyCharacter,
+        TokenTypes::Eof => return Ok(RegexAST::EmptyString),
+        // handle some invalid literals for this section of code
         TokenTypes::ClosureStar => return Err(Error::Syntax(
             "Invalid Closure: ClosureStar operator needs a preceding literal, e.g. \"a*\", \"(ab)*\", \"(a|c)*\"."
                 .to_string(),
@@ -130,7 +135,6 @@ fn parse_regex_expr(lexer: &mut Lexer, min_bp: u8) -> Result<RegexAST, Error> {
         ),
         TokenTypes::CloseParenthesis => return Err(Error::Syntax("Unmatched parenthesis.".to_string())),
         TokenTypes::CloseBracket => return Err(Error::Syntax("Unmatched bracket.".to_string())),
-        TokenTypes::Eof => return Ok(RegexAST::EmptyString),
         t => panic!("Error: Unsuported token {:?}", t),
     };
 

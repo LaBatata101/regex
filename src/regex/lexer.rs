@@ -12,6 +12,7 @@ pub enum TokenTypes {
     OpenBracket,
     CloseBracket,
     Dash,
+    Dot,
     Eof,
 }
 
@@ -25,6 +26,7 @@ impl TokenTypes {
             ')' => TokenTypes::CloseParenthesis,
             '[' => TokenTypes::OpenBracket,
             ']' => TokenTypes::CloseBracket,
+            '.' => TokenTypes::Dot,
             _ => TokenTypes::Symbol(symbol),
         }
     }
@@ -55,6 +57,7 @@ impl Token {
     }
 }
 
+#[derive(Debug)]
 pub struct Lexer {
     tokens: Vec<Token>,
     index: usize,
@@ -108,13 +111,14 @@ pub fn tokenize_regex_str(regex: &str) -> Vec<Token> {
             if matches!(
                 current_token_type,
                 TokenTypes::Symbol(_)
+                    | TokenTypes::Dot
                     | TokenTypes::CloseParenthesis
                     | TokenTypes::CloseBracket
                     | TokenTypes::ClosurePlus
                     | TokenTypes::ClosureStar
             ) && matches!(
                 next_token_type,
-                TokenTypes::Symbol(_) | TokenTypes::OpenParenthesis | TokenTypes::OpenBracket
+                TokenTypes::Symbol(_) | TokenTypes::Dot | TokenTypes::OpenParenthesis | TokenTypes::OpenBracket
             ) {
                 // Since the Concatenation is implicit we don't care about it's position
                 tokens.push(Token::new(TokenTypes::Concatenation, 0, 0));
